@@ -12,6 +12,7 @@ export function toSatrec(record: SatelliteRecord): SatRec {
   return json2satrec(record)
 }
 
+// Call by CEsium when timeline is activated, passing its internal clock value (date) to determine entity position
 /** SGP4 position at `date`, converted from TEME (inertial) to Earth-fixed lon/lat/height. */
 export function positionAt(satrec: SatRec, date: Date): GeodeticPosition | null {
   const result = propagate(satrec, date)
