@@ -1,0 +1,23 @@
+# Rebuilt inside the image
+node_modules
+.nuxt
+.output
+.data
+.nitro
+.cache
+public/cesium
+
+# Not needed in the image (and secrets must never be in it)
+.git
+.kamal
+.env*
+config
+Dockerfile
+.dockerignore
+
+# Editor / OS / logs
+.vscode
+.idea
+.fleet
+.DS_Store
+*.log

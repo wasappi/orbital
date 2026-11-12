@@ -33,5 +33,10 @@ export default defineNuxtConfig({
       // Where Cesium loads its runtime assets (Workers, Assets, Widgets) from — see public/cesium
       CESIUM_BASE_URL: JSON.stringify('/cesium'),
     },
+    // satellite.js ships a WASM build whose Web Worker uses top-level await,
+    // which the default 'iife' worker format can't bundle → production build fails
+    worker: {
+      format: 'es',
+    },
   },
 })

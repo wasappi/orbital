@@ -1,0 +1,27 @@
+service: orbital
+image: wasappi/orbital
+
+servers:
+  web:
+    - 89.167.34.4
+
+proxy:
+  # TLS is terminated by Nginx Proxy Manager in front (orbital.darkmode.sh → 89.167.34.4:8080)
+  ssl: false
+  host: orbital.darkmode.sh
+  app_port: 3000 # Nuxt/Nitro listens on 3000 (PORT in the Dockerfile)
+  healthcheck:
+    path: /up # server/routes/up.ts — kamal-proxy waits for a 200 here before switching traffic
+  # kamal-proxy is shared with geotool on this server: these must stay identical to geotool's settings
+  run:
+    http_port: 8080
+    https_port: 8443
+
+registry:
+  server: ghcr.io
+  username: wasappi
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: arm64
