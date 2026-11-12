@@ -2,7 +2,7 @@
 <script setup lang="ts">
 
 // import { nextTick, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue' Auto imports so not necessary 
-import { Cartesian3, ImageryLayer, OpenStreetMapImageryProvider, Viewer, Color } from 'cesium'
+import { Cartesian3, ImageryLayer, OpenStreetMapImageryProvider, ArcGisMapServerImageryProvider, TileMapServiceImageryProvider, Viewer, Color, CallbackPositionProperty, JulianDate, buildModuleUrl,SkyBox, LabelStyle, VerticalOrigin, Cartesian2 } from 'cesium'
 
 const container = useTemplateRef<HTMLDivElement>('container')
 const prop = defineProps<{satellites: SatelliteRecord[]}>() //injected from index.vue via  <Globe :satellites="satelliteData" />
@@ -10,7 +10,6 @@ const prop = defineProps<{satellites: SatelliteRecord[]}>() //injected from inde
 // either when data is actually injected in components (LazyFetch so no garantee data is present when viewer mount)
 watch(() => prop.satellites, displaySatellites) 
 
-// Plain variable on purpose: making the Viewer reactive would deep-proxy Cesium internals
 let viewer: Viewer | null = null
 
 onMounted(async () => {
@@ -19,22 +18,32 @@ onMounted(async () => {
   if (!container.value) return
 
   viewer = new Viewer(container.value, {
-    // OSM imagery instead of the default Ion/Bing layer → no Ion token needed
-    baseLayer: new ImageryLayer(
-      new OpenStreetMapImageryProvider({ url: 'https://tile.openstreetmap.org/' }),
+    // Esri World Imagery: real satellite photos
+    baseLayer: ImageryLayer.fromProviderAsync(
+      ArcGisMapServerImageryProvider.fromUrl(
+        'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
+      )
     ),
+
     baseLayerPicker: false, // picker lists Ion layers
     geocoder: false, // geocoder uses Ion
-    timeline: false, // re-enabled in step 5
-    animation: false,
+    timeline: true,  // enable Cesium internal clock to animate entities on a timeline or real time
+    animation: true, // enable Cesium internal clock to animate entities on a timeline or real time
+    useBrowserRecommendedResolution: false
   })
 
-  // Start above Paris, far enough to see the whole globe
+  viewer.clock.shouldAnimate = true
+  viewer.scene.globe.enableLighting = true
+  viewer.scene.skyBox.show = false
+
+
+  // Start above Bxl
   viewer.camera.setView({
-    destination: Cartesian3.fromDegrees(2.3522, 48.8566, 20_000_000),
+    destination: Cartesian3.fromDegrees(4.349394, 50.847767, 20_000_000),
   })
+  
 
-  // either when viewer is actually added to page
+  // either when viewer is actually added to page (or via watch triggered when satellites data are injecyed in components)
   displaySatellites()
 
 })
@@ -59,19 +68,29 @@ function displaySatellites() {
     const satrec = toSatrec(satellite)
     const pos = positionAt(satrec, new Date())
     if (pos) {
-      const cartesian = Cartesian3.fromRadians(
-        pos.longitude,        // Already in radians
-        pos.latitude,         // Already in radians
-        pos.heightKm * 1000   // Convert kilometers to meters
-      );
-      const entity = viewer?.entities.add({
-        position: cartesian,
+      viewer?.entities.add({
+        position: new CallbackPositionProperty((time) => {
+            // Cesium calls this on EVERY frame, passing its clock time
+            if (!time) return undefined
+            const current_pos = positionAt(satrec, JulianDate.toDate(time))
+            return current_pos ? Cartesian3.fromRadians(current_pos.longitude, current_pos.latitude, current_pos.heightKm * 1000) : undefined
+          }, false),
         point: {
           pixelSize: 10,
-          color: Color.BLUE,
+          color: isSentinel(satellite) ? Color.ORANGE : Color.BLUE,
           outlineColor: Color.WHITE,
           outlineWidth: 2,
         },
+        label: {
+          text: satellite.OBJECT_NAME,                 
+          font: '12px sans-serif',
+          fillColor: Color.WHITE,
+          outlineColor: Color.BLACK,
+          outlineWidth: 2,
+          style: LabelStyle.FILL_AND_OUTLINE,          
+          verticalOrigin: VerticalOrigin.BOTTOM,      
+          pixelOffset: new Cartesian2(0, -10),       
+      },
       });
     }
   })
