@@ -6,6 +6,12 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   $production: {
+    nitro: {
+      storage: {
+        // CAche is no on disk an d not in memory, so it survices kamal deploy new container that would otherwise trigger a 403 from celestrak because of the too much request triggered (max every 2 hours)
+        cache: { driver: 'fs', base: '/app/.data/cache' },
+      },
+    },
     routeRules: {
       '/api/**': { isr: 7200 }
     },

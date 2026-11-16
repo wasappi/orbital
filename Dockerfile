@@ -22,6 +22,10 @@ ENV NODE_ENV=production \
 
 COPY --from=build --chown=node:node /app/.output ./.output
 
+# Mount point of the orbital_data volume (Nitro cache, see nuxt.config.ts). Created here owned by
+# `node` so Docker initialises the empty named volume with that ownership → the app can write to it.
+RUN mkdir -p /app/.data/cache && chown -R node:node /app/.data
+
 USER node
 EXPOSE 3000
 CMD ["node", ".output/server/index.mjs"]

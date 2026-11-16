@@ -17,6 +17,10 @@ proxy:
     http_port: 8080
     https_port: 8443
 
+# Persists the Nitro cache (CelesTrak data) across deploys — see nuxt.config.ts
+volumes:
+  - "orbital_data:/app/.data"
+
 registry:
   server: ghcr.io
   username: wasappi
