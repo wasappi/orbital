@@ -2,7 +2,7 @@
 <script setup lang="ts">
 
 // import { nextTick, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue' Auto imports so not necessary 
-import { Cartesian3, ImageryLayer, OpenStreetMapImageryProvider, ArcGisMapServerImageryProvider, TileMapServiceImageryProvider, Viewer, Color, CallbackPositionProperty, JulianDate, buildModuleUrl,SkyBox, LabelStyle, VerticalOrigin, Cartesian2 } from 'cesium'
+import { Cartesian3, ImageryLayer, OpenStreetMapImageryProvider, ArcGisMapServerImageryProvider, TileMapServiceImageryProvider, Viewer, Color, CallbackPositionProperty, JulianDate, buildModuleUrl,SkyBox, LabelStyle, VerticalOrigin, Cartesian2, CallbackProperty } from 'cesium'
 
 const container = useTemplateRef<HTMLDivElement>('container')
 const prop = defineProps<{satellites: SatelliteRecord[]}>() //injected from index.vue via  <Globe :satellites="satelliteData" />
@@ -69,6 +69,12 @@ function displaySatellites() {
     const pos = positionAt(satrec, new Date())
     if (pos) {
       viewer?.entities.add({
+        description: new CallbackProperty((time) => {
+          if (!time) return undefined
+          const live = positionAt(satrec, JulianDate.toDate(time))   // compute (orbit.ts)
+          return satelliteDescription(satellite, live)
+        }, false),
+        name: satellite.OBJECT_NAME,
         position: new CallbackPositionProperty((time) => {
             // Cesium calls this on EVERY frame, passing its clock time
             if (!time) return undefined
