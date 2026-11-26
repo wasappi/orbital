@@ -1,0 +1,51 @@
+# Build the image on GitHub's runner, push it to ghcr.io from inside GitHub's network,
+# then let Kamal deploy it to the Hetzner server over SSH.
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: # "Run workflow" button in the Actions tab
+
+# Never run two deploys at once; a newer push waits for the running one instead of cancelling it mid-switch
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write # lets GITHUB_TOKEN push to ghcr.io/wasappi/orbital
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04-arm # server is arm64 (builder.arch in config/deploy.yml) → native build, no emulation
+    timeout-minutes: 20
+    env:
+      # .kamal/secrets reads KAMAL_REGISTRY_PASSWORD from `gh auth token`; gh returns GH_TOKEN when it is set
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install Kamal
+        run: gem install kamal -v 2.10.1 --no-document # same version as local
+
+      - name: Load deploy SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust server host key
+        run: ssh-keyscan -H 89.167.34.4 >> ~/.ssh/known_hosts
+
+      - name: Check registry token
+        run: test -n "$(gh auth token)" || { echo "gh auth token returned nothing"; exit 1; }
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Deploy
+        run: kamal deploy
